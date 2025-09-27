@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gondwana Rates Checker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="min-h-screen flex items-center justify-center p-6">
+    <div class="bg-white shadow-2xl rounded-2xl w-full max-w-3xl p-8 relative">
+      <h1 class="text-2xl font-bold text-blue-600 mb-6 text-center">
+        Gondwana Rates Checker
+      </h1>
+
+      <!-- Error Alert -->
+      <div id="errorBox" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6">
+        <span id="errorMessage"></span>
+      </div>
+
+      <!-- Form -->
+      <form id="rateForm" class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Unit Name</label>
+          <select id="unitName" class="w-full border rounded-lg p-3 mt-1">
+            <option value="Unit A">Unit A</option>
+            <option value="Unit B">Unit B</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Arrival</label>
+            <input type="date" id="arrival" class="w-full border rounded-lg p-3 mt-1" required />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Departure</label>
+            <input type="date" id="departure" class="w-full border rounded-lg p-3 mt-1" required />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Guest Ages (comma separated)</label>
+          <input type="text" id="ages" placeholder="e.g. 34,12" class="w-full border rounded-lg p-3 mt-1" required />
+        </div>
+
+        <button
+          type="submit"
+          id="submitBtn"
+          class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition flex items-center justify-center"
+        >
+          <span id="btnText">Fetch Rates</span>
+          <svg id="spinner" class="hidden ml-2 w-5 h-5 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"></path>
+          </svg>
+        </button>
+      </form>
+
+      <!-- Results -->
+      <div id="results" class="mt-8 hidden">
+        <h2 class="text-xl font-bold text-gray-700 mb-4">Results</h2>
+        <pre id="resultsRaw" class="bg-gray-900 text-green-400 rounded-lg p-4 overflow-x-auto text-sm"></pre>
+        <div id="summary" class="mt-6 space-y-4"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("rateForm");
+    const results = document.getElementById("results");
+    const resultsRaw = document.getElementById("resultsRaw");
+    const summary = document.getElementById("summary");
+    const errorBox = document.getElementById("errorBox");
+    const errorMessage = document.getElementById("errorMessage");
+    const spinner = document.getElementById("spinner");
+    const btnText = document.getElementById("btnText");
+
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorBox.classList.remove("hidden");
+    }
+
+    function hideError() {
+      errorBox.classList.add("hidden");
+    }
+
+    function setLoading(isLoading) {
+      if (isLoading) {
+        spinner.classList.remove("hidden");
+        btnText.textContent = "Fetching...";
+      } else {
+        spinner.classList.add("hidden");
+        btnText.textContent = "Fetch Rates";
+      }
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideError();
+      setLoading(true);
+
+      const unitName = document.getElementById("unitName").value;
+      const arrival = document.getElementById("arrival").value;
+      const departure = document.getElementById("departure").value;
+      const ages = document.getElementById("ages").value.split(",").map(a => parseInt(a.trim(), 10));
+
+      const payload = {
+        "Unit Name": unitName,
+        "Arrival": arrival,
+        "Departure": departure,
+        "Occupants": ages.length,
+        "Ages": ages
+      };
+
+      try {
+        const res = await fetch("http://localhost:8010/index.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          throw new Error("Server returned " + res.status);
+        }
+
+        const data = await res.json();
+
+        // Show raw response
+        resultsRaw.textContent = JSON.stringify(data, null, 2);
+        results.classList.remove("hidden");
+
+        // Show summary
+        summary.innerHTML = "";
+        if (data.response?.Legs) {
+          data.response.Legs.forEach((leg, idx) => {
+            const card = document.createElement("div");
+            card.className = "border rounded-lg p-4 bg-gray-50";
+            card.innerHTML = `
+              <h3 class="font-bold text-gray-800 mb-2">Option ${idx + 1}</h3>
+              <p><strong>Rate:</strong> ${leg["Special Rate Description"]}</p>
+              <p><strong>Total Charge:</strong> ${leg["Total Charge"]}</p>
+              <p><strong>Guests:</strong> ${leg.Guests.map(g => g["Age Group"] + (g.Age ? " (" + g.Age + ")" : "")).join(", ")}</p>
+            `;
+            summary.appendChild(card);
+          });
+        }
+      } catch (err) {
+        showError("Error fetching rates: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+  </script>
+</body>
+</html>
