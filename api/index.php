@@ -43,8 +43,9 @@ if (!$arrival || !$departure) {
 // Convert ages into guest objects
 $ages = $input["Ages"] ?? [];
 $guests = array_map(function($age) {
-    return ["Age Group" => $age >= 12 ? "Adult" : "Child"];
+    return ["Age Group" => $age >= 14 ? "Adult" : "Child"];
 }, $ages);
+
 
 // Final payload for Gondwana API
 $forwardPayload = [
