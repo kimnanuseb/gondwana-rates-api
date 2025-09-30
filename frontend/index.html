@@ -2,155 +2,179 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Gondwana Rates Checker</title>
+  <title>🌍 Gondwana Rates Checker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-gray-100 text-gray-900">
   <div class="min-h-screen flex items-center justify-center p-6">
-    <div class="bg-white shadow-2xl rounded-2xl w-full max-w-3xl p-8 relative">
-      <h1 class="text-2xl font-bold text-blue-600 mb-6 text-center">
-        Gondwana Rates Checker
-      </h1>
+    <div class="bg-white shadow-2xl rounded-2xl w-full max-w-4xl p-8">
+      <h1 class="text-3xl font-bold text-blue-600 mb-6 text-center">🌍 Gondwana Rates Checker</h1>
 
-      <!-- Error Alert -->
-      <div id="errorBox" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6">
+      <!-- Error -->
+      <div id="errorBox" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
         <span id="errorMessage"></span>
       </div>
 
       <!-- Form -->
-      <form id="rateForm" class="space-y-6">
+      <form id="rateForm" class="grid md:grid-cols-2 gap-6">
+        <div class="md:col-span-2 relative">
+          <input type="text" id="search" placeholder="🔍 Search by property, region, activities..."
+            class="w-full border rounded-lg p-3 pl-10 focus:ring-2 focus:ring-blue-400" />
+        </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700">Unit Name</label>
-          <select id="unitName" class="w-full border rounded-lg p-3 mt-1">
-            <option value="Unit A">Unit A</option>
-            <option value="Unit B">Unit B</option>
-          </select>
+          <label class="block text-sm font-medium">Arrival</label>
+          <input type="date" id="arrival" class="w-full border rounded-lg p-3 mt-1" required />
         </div>
-
-        <div class="grid grid-cols-2 gap-6">
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Arrival</label>
-            <input type="date" id="arrival" class="w-full border rounded-lg p-3 mt-1" required />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Departure</label>
-            <input type="date" id="departure" class="w-full border rounded-lg p-3 mt-1" required />
-          </div>
-        </div>
-
         <div>
-          <label class="block text-sm font-medium text-gray-700">Guest Ages (comma separated)</label>
-          <input type="text" id="ages" placeholder="e.g. 34,12" class="w-full border rounded-lg p-3 mt-1" required />
+          <label class="block text-sm font-medium">Departure</label>
+          <input type="date" id="departure" class="w-full border rounded-lg p-3 mt-1" required />
         </div>
-
-        <button
-          type="submit"
-          id="submitBtn"
-          class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition flex items-center justify-center"
-        >
-          <span id="btnText">Fetch Rates</span>
-          <svg id="spinner" class="hidden ml-2 w-5 h-5 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"></path>
-          </svg>
-        </button>
+        <div>
+          <label class="block text-sm font-medium">Adults</label>
+          <input type="number" id="adults" min="0" value="2" class="w-full border rounded-lg p-3 mt-1" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Children</label>
+          <input type="number" id="children" min="0" value="0" class="w-full border rounded-lg p-3 mt-1" />
+        </div>
+        <div class="md:col-span-2 flex gap-4">
+          <button type="submit" id="submitBtn"
+            class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition flex items-center justify-center">
+            <span id="btnText">Search</span>
+            <svg id="spinner" class="hidden ml-2 w-5 h-5 text-white animate-spin" xmlns="http://www.w3.org/2000/svg"
+              fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"></path>
+            </svg>
+          </button>
+          <button type="button" id="clearBtn"
+            class="flex-1 bg-gray-300 text-gray-800 py-3 rounded-lg hover:bg-gray-400 transition">
+            Clear
+          </button>
+        </div>
       </form>
 
       <!-- Results -->
-      <div id="results" class="mt-8 hidden">
-        <h2 class="text-xl font-bold text-gray-700 mb-4">Results</h2>
-        <pre id="resultsRaw" class="bg-gray-900 text-green-400 rounded-lg p-4 overflow-x-auto text-sm"></pre>
-        <div id="summary" class="mt-6 space-y-4"></div>
+      <div id="results" class="mt-10 hidden">
+        <h2 class="text-2xl font-bold text-gray-700 mb-6">Results</h2>
+        <div id="summary" class="grid gap-6"></div>
       </div>
     </div>
   </div>
 
-  <script>
-    const form = document.getElementById("rateForm");
-    const results = document.getElementById("results");
-    const resultsRaw = document.getElementById("resultsRaw");
-    const summary = document.getElementById("summary");
-    const errorBox = document.getElementById("errorBox");
-    const errorMessage = document.getElementById("errorMessage");
-    const spinner = document.getElementById("spinner");
-    const btnText = document.getElementById("btnText");
+<script>
+  const form = document.getElementById("rateForm");
+  const results = document.getElementById("results");
+  const summary = document.getElementById("summary");
+  const errorBox = document.getElementById("errorBox");
+  const errorMessage = document.getElementById("errorMessage");
+  const spinner = document.getElementById("spinner");
+  const btnText = document.getElementById("btnText");
+  const clearBtn = document.getElementById("clearBtn");
 
-    function showError(message) {
-      errorMessage.textContent = message;
-      errorBox.classList.remove("hidden");
+  // Auto-detect backend URL
+  const API_URL =
+    window.location.hostname.includes("github.dev") || window.location.hostname.includes("app.github.dev")
+      ? `${window.location.origin.replace(/-\d+\.app\.github\.dev/, "-8080.app.github.dev")}/api/index.php`
+      : "http://localhost:8080/api/index.php";
+
+  function showError(msg) {
+    errorMessage.textContent = msg;
+    errorBox.classList.remove("hidden");
+  }
+  function hideError() {
+    errorBox.classList.add("hidden");
+  }
+  function setLoading(isLoading) {
+    if (isLoading) {
+      spinner.classList.remove("hidden");
+      btnText.textContent = "Searching...";
+    } else {
+      spinner.classList.add("hidden");
+      btnText.textContent = "Search";
     }
+  }
 
-    function hideError() {
-      errorBox.classList.add("hidden");
-    }
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hideError();
+    setLoading(true);
 
-    function setLoading(isLoading) {
-      if (isLoading) {
-        spinner.classList.remove("hidden");
-        btnText.textContent = "Fetching...";
-      } else {
-        spinner.classList.add("hidden");
-        btnText.textContent = "Fetch Rates";
-      }
-    }
+    const arrival = document.getElementById("arrival").value;
+    const departure = document.getElementById("departure").value;
+    const adults = parseInt(document.getElementById("adults").value, 10) || 0;
+    const children = parseInt(document.getElementById("children").value, 10) || 0;
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      hideError();
-      setLoading(true);
+    // Build ages array
+    const ages = [];
+    for (let i = 0; i < adults; i++) ages.push(30);
+    for (let i = 0; i < children; i++) ages.push(10);
 
-      const unitName = document.getElementById("unitName").value;
-      const arrival = document.getElementById("arrival").value;
-      const departure = document.getElementById("departure").value;
-      const ages = document.getElementById("ages").value.split(",").map(a => parseInt(a.trim(), 10));
+    const payload = {
+      "Unit Name": "Unit A",
+      "Arrival": arrival,
+      "Departure": departure,
+      "Occupants": ages.length,
+      "Ages": ages,
+    };
 
-      const payload = {
-        "Unit Name": unitName,
-        "Arrival": arrival,
-        "Departure": departure,
-        "Occupants": ages.length,
-        "Ages": ages
-      };
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-      try {
-        const res = await fetch("http://localhost:8010/index.php", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+      if (!res.ok) throw new Error("Server returned " + res.status);
+      const data = await res.json();
+
+      summary.innerHTML = "";
+      results.classList.remove("hidden");
+
+      if (data?.response?.Legs?.length) {
+        let grandTotal = 0;
+
+        data.response.Legs.forEach((leg, idx) => {
+          const total = leg["Total Charge"] || 0;
+          grandTotal += total;
+
+          const card = document.createElement("div");
+          card.className = "border rounded-2xl shadow-lg p-6 bg-gray-50";
+          card.innerHTML = `
+            <h3 class="text-xl font-bold text-gray-800 mb-2">🏡 ${payload["Unit Name"]}</h3>
+            <p class="text-green-600 font-semibold mb-2">✔ Available</p>
+            <p><strong>📅 Date Range:</strong> ${arrival} → ${departure}</p>
+            <p><strong>👥 Guests:</strong> ${adults} Adult(s), ${children} Child(ren)</p>
+            <p><strong>💰 Rate:</strong> ${leg["Special Rate Description"] || "N/A"}</p>
+            <p><strong>💵 Total:</strong> N$ ${(total / 100).toLocaleString()}</p>
+            <p><strong>💵 Avg per night:</strong> N$ ${(leg["Effective Average Daily Rate"] / 100).toLocaleString()}</p>
+          `;
+          summary.appendChild(card);
         });
 
-        if (!res.ok) {
-          throw new Error("Server returned " + res.status);
-        }
-
-        const data = await res.json();
-
-        // Show raw response
-        resultsRaw.textContent = JSON.stringify(data, null, 2);
-        results.classList.remove("hidden");
-
-        // Show summary
-        summary.innerHTML = "";
-        if (data.response?.Legs) {
-          data.response.Legs.forEach((leg, idx) => {
-            const card = document.createElement("div");
-            card.className = "border rounded-lg p-4 bg-gray-50";
-            card.innerHTML = `
-              <h3 class="font-bold text-gray-800 mb-2">Option ${idx + 1}</h3>
-              <p><strong>Rate:</strong> ${leg["Special Rate Description"]}</p>
-              <p><strong>Total Charge:</strong> ${leg["Total Charge"]}</p>
-              <p><strong>Guests:</strong> ${leg.Guests.map(g => g["Age Group"] + (g.Age ? " (" + g.Age + ")" : "")).join(", ")}</p>
-            `;
-            summary.appendChild(card);
-          });
-        }
-      } catch (err) {
-        showError("Error fetching rates: " + err.message);
-      } finally {
-        setLoading(false);
+        const totalDiv = document.createElement("div");
+        totalDiv.className = "mt-4 font-bold text-xl text-blue-700";
+        totalDiv.textContent = `Grand Total: N$ ${(grandTotal / 100).toLocaleString()}`;
+        summary.appendChild(totalDiv);
+      } else {
+        summary.innerHTML = `<p class="text-gray-500">❌ No results found</p>`;
       }
-    });
-  </script>
+    } catch (err) {
+      showError("Error fetching rates: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  clearBtn.addEventListener("click", () => {
+    form.reset();
+    results.classList.add("hidden");
+    summary.innerHTML = "";
+    hideError();
+  });
+</script>
+
 </body>
 </html>
