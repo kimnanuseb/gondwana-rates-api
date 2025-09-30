@@ -11,12 +11,10 @@
     <div class="bg-white shadow-2xl rounded-2xl w-full max-w-4xl p-8">
       <h1 class="text-3xl font-bold text-blue-600 mb-6 text-center">🌍 Gondwana Rates Checker</h1>
 
-      <!-- Error -->
       <div id="errorBox" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
         <span id="errorMessage"></span>
       </div>
 
-      <!-- Form -->
       <form id="rateForm" class="grid md:grid-cols-2 gap-6">
         <div class="md:col-span-2 relative">
           <input type="text" id="search" placeholder="🔍 Search by property, region, activities..."
@@ -56,7 +54,6 @@
         </div>
       </form>
 
-      <!-- Results -->
       <div id="results" class="mt-10 hidden">
         <h2 class="text-2xl font-bold text-gray-700 mb-6">Results</h2>
         <div id="summary" class="grid gap-6"></div>
@@ -74,7 +71,6 @@
   const btnText = document.getElementById("btnText");
   const clearBtn = document.getElementById("clearBtn");
 
-  // Auto-detect backend URL
   const API_URL =
     window.location.hostname.includes("github.dev") || window.location.hostname.includes("app.github.dev")
       ? `${window.location.origin.replace(/-\d+\.app\.github\.dev/, "-8080.app.github.dev")}/api/index.php`
@@ -107,7 +103,6 @@
     const adults = parseInt(document.getElementById("adults").value, 10) || 0;
     const children = parseInt(document.getElementById("children").value, 10) || 0;
 
-    // Build ages array
     const ages = [];
     for (let i = 0; i < adults; i++) ages.push(30);
     for (let i = 0; i < children; i++) ages.push(10);
@@ -136,9 +131,10 @@
       if (data?.response?.Legs?.length) {
         let grandTotal = 0;
 
-        data.response.Legs.forEach((leg, idx) => {
-          const total = leg["Total Charge"] || 0;
-          grandTotal += total;
+        data.response.Legs.forEach((leg) => {
+          const totalCents = leg["Total Charge"] || 0;
+          const avgCents = leg["Effective Average Daily Rate"] || 0;
+          grandTotal += totalCents;
 
           const card = document.createElement("div");
           card.className = "border rounded-2xl shadow-lg p-6 bg-gray-50";
@@ -148,8 +144,8 @@
             <p><strong>📅 Date Range:</strong> ${arrival} → ${departure}</p>
             <p><strong>👥 Guests:</strong> ${adults} Adult(s), ${children} Child(ren)</p>
             <p><strong>💰 Rate:</strong> ${leg["Special Rate Description"] || "N/A"}</p>
-            <p><strong>💵 Total:</strong> N$ ${(total / 100).toLocaleString()}</p>
-            <p><strong>💵 Avg per night:</strong> N$ ${(leg["Effective Average Daily Rate"] / 100).toLocaleString()}</p>
+            <p><strong>💵 Total:</strong> N$ ${(totalCents / 100).toLocaleString()}</p>
+            <p><strong>💵 Avg per night:</strong> N$ ${(avgCents / 100).toLocaleString()}</p>
           `;
           summary.appendChild(card);
         });
