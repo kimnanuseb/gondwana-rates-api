@@ -16,10 +16,6 @@
       </div>
 
       <form id="rateForm" class="grid md:grid-cols-2 gap-6">
-        <div class="md:col-span-2 relative">
-          <input type="text" id="search" placeholder="🔍 Search by property, region, activities..."
-            class="w-full border rounded-lg p-3 pl-10 focus:ring-2 focus:ring-blue-400" />
-        </div>
         <div>
           <label class="block text-sm font-medium">Arrival</label>
           <input type="date" id="arrival" class="w-full border rounded-lg p-3 mt-1" required />
@@ -62,34 +58,35 @@
   </div>
 
 <script>
-  const form = document.getElementById("rateForm");
-  const results = document.getElementById("results");
-  const summary = document.getElementById("summary");
-  const errorBox = document.getElementById("errorBox");
-  const errorMessage = document.getElementById("errorMessage");
-  const spinner = document.getElementById("spinner");
-  const btnText = document.getElementById("btnText");
-  const clearBtn = document.getElementById("clearBtn");
-
   const API_URL =
     window.location.hostname.includes("github.dev") || window.location.hostname.includes("app.github.dev")
       ? `${window.location.origin.replace(/-\d+\.app\.github\.dev/, "-8080.app.github.dev")}/api/index.php`
       : "http://localhost:8080/api/index.php";
 
+  const form = document.getElementById("rateForm");
+  const summary = document.getElementById("summary");
+  const results = document.getElementById("results");
+  const errorBox = document.getElementById("errorBox");
+  const errorMessage = document.getElementById("errorMessage");
+  const btnText = document.getElementById("btnText");
+  const spinner = document.getElementById("spinner");
+
   function showError(msg) {
     errorMessage.textContent = msg;
     errorBox.classList.remove("hidden");
   }
+
   function hideError() {
     errorBox.classList.add("hidden");
   }
+
   function setLoading(isLoading) {
     if (isLoading) {
+      btnText.textContent = "Loading...";
       spinner.classList.remove("hidden");
-      btnText.textContent = "Searching...";
     } else {
-      spinner.classList.add("hidden");
       btnText.textContent = "Search";
+      spinner.classList.add("hidden");
     }
   }
 
@@ -108,11 +105,9 @@
     for (let i = 0; i < children; i++) ages.push(10);
 
     const payload = {
-      "Unit Name": "Unit A",
       "Arrival": arrival,
       "Departure": departure,
-      "Occupants": ages.length,
-      "Ages": ages,
+      "Ages": ages
     };
 
     try {
@@ -128,32 +123,36 @@
       summary.innerHTML = "";
       results.classList.remove("hidden");
 
-      if (data?.response?.Legs?.length) {
-        let grandTotal = 0;
+      if (data?.results?.length) {
+        data.results.forEach((result) => {
+          const leg = result.apiResponse.Legs?.[0];
+         if (leg) {
+  const isAvailable = leg["Total Charge"] > 0;
 
-        data.response.Legs.forEach((leg) => {
-          const totalCents = leg["Total Charge"] || 0;
-          const avgCents = leg["Effective Average Daily Rate"] || 0;
-          grandTotal += totalCents;
+  const card = document.createElement("div");
+  card.className = "border rounded-2xl shadow-lg p-6 bg-gray-50";
 
-          const card = document.createElement("div");
-          card.className = "border rounded-2xl shadow-lg p-6 bg-gray-50";
-          card.innerHTML = `
-            <h3 class="text-xl font-bold text-gray-800 mb-2">🏡 ${payload["Unit Name"]}</h3>
-            <p class="text-green-600 font-semibold mb-2">✔ Available</p>
-            <p><strong>📅 Date Range:</strong> ${arrival} → ${departure}</p>
-            <p><strong>👥 Guests:</strong> ${adults} Adult(s), ${children} Child(ren)</p>
-            <p><strong>💰 Rate:</strong> ${leg["Special Rate Description"] || "N/A"}</p>
-            <p><strong>💵 Total:</strong> N$ ${(totalCents / 100).toLocaleString()}</p>
-            <p><strong>💵 Avg per night:</strong> N$ ${(avgCents / 100).toLocaleString()}</p>
-          `;
-          summary.appendChild(card);
+  card.innerHTML = `
+    <h3 class="text-xl font-bold text-gray-800 mb-2">🏡 ${result.unitName}</h3>
+    <p class="${isAvailable ? "text-green-600" : "text-red-600"} font-semibold mb-2">
+      ${isAvailable ? "✔ Available" : "❌ Not available"}
+    </p>
+    <p><strong>📅 Date Range:</strong> ${data.arrival} → ${data.departure}</p>
+    <p><strong>💰 Rate:</strong> ${leg["Special Rate Description"] || "N/A"}</p>
+    ${
+      isAvailable
+        ? `
+          <p><strong>💵 Total:</strong> N$ ${(leg["Total Charge"] / 100).toLocaleString()}</p>
+          <p><strong>💵 Avg per night:</strong> N$ ${(leg["Effective Average Daily Rate"] / 100).toLocaleString()}</p>
+        `
+        : ""
+    }
+  `;
+
+  summary.appendChild(card);
+}
+
         });
-
-        const totalDiv = document.createElement("div");
-        totalDiv.className = "mt-4 font-bold text-xl text-blue-700";
-        totalDiv.textContent = `Grand Total: N$ ${(grandTotal / 100).toLocaleString()}`;
-        summary.appendChild(totalDiv);
       } else {
         summary.innerHTML = `<p class="text-gray-500">❌ No results found</p>`;
       }
@@ -164,10 +163,13 @@
     }
   });
 
-  clearBtn.addEventListener("click", () => {
-    form.reset();
-    results.classList.add("hidden");
+  document.getElementById("clearBtn").addEventListener("click", () => {
+    document.getElementById("arrival").value = "";
+    document.getElementById("departure").value = "";
+    document.getElementById("adults").value = 2;
+    document.getElementById("children").value = 0;
     summary.innerHTML = "";
+    results.classList.add("hidden");
     hideError();
   });
 </script>

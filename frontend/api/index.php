@@ -1,82 +1,61 @@
 <?php
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Content-Type: application/json");
-
-if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
-    http_response_code(200);
-    exit();
-}
+header("Access-Control-Allow-Origin: *");
 
 $input = json_decode(file_get_contents("php://input"), true);
 
-if (!$input) {
-    echo json_encode(["status" => "error", "message" => "Invalid input"]);
-    exit();
+if (!$input || !isset($input["Arrival"], $input["Departure"], $input["Ages"])) {
+    http_response_code(400);
+    echo json_encode(["status" => "error", "message" => "Invalid request"]);
+    exit;
 }
 
-$unitName = $input["Unit Name"] ?? null;
-$arrival = $input["Arrival"] ?? null;
-$departure = $input["Departure"] ?? null;
-$occupants = $input["Occupants"] ?? 0;
-$ages = $input["Ages"] ?? [];
+$arrival = $input["Arrival"];
+$departure = $input["Departure"];
+$ages = $input["Ages"];
 
-$guests = [];
-foreach ($ages as $age) {
-    $guests[] = [
-        "Age Group" => $age >= 12 ? "Adult" : "Child",
-        "Age" => $age
-    ];
-}
+$guests = array_map(function ($age) {
+    return ["Age Group" => $age >= 18 ? "Adult" : "Child"];
+}, $ages);
 
-$response = [
-    "Location ID" => rand(1000, 9999),
-    "Total Charge" => 0,
-    "Extras Charge" => 0,
-    "Booking Group ID" => "Rate Check",
-    "Rooms" => 1,
-    "Legs" => []
+$units = [
+    ["unitId" => -2147483637, "unitName" => "Kalahari Farmhouse"],
+    ["unitId" => -2147483456, "unitName" => "Klipspringer Camps"],
 ];
 
-$nightCount = (new DateTime($departure))->diff(new DateTime($arrival))->days;
-$total = 0;
+$results = [];
 
-foreach ($guests as $guest) {
-    $ratePerNight = $guest["Age Group"] === "Adult" ? 650 : 325;
-    $charge = $ratePerNight * $nightCount;
-    $total += $charge;
-    $response["Legs"][] = [
-        "Special Rate ID" => rand(100000, 999999),
-        "Effective Average Daily Rate" => $ratePerNight,
-        "Total Charge" => $charge,
-        "Deposit Rule ID" => rand(1000, 9999),
-        "Deposit Breakdown" => [
-            ["Due Day" => date("z"), "Due Amount" => $charge]
-        ],
-        "Error Code" => 0,
-        "Guests" => [$guest],
-        "Category" => "STANDARD",
-        "Special Rate Description" => "* STANDARD RATE - " . $unitName,
-        "Special Rate Code" => strtoupper(substr($unitName, 0, 3)) . rand(100, 999),
-        "Special Rate Requested ID" => rand(100000, 999999),
-        "Booking Client ID" => rand(100000, 999999),
-        "Adult Count" => $guest["Age Group"] === "Adult" ? 1 : 0,
-        "Child Ages" => $guest["Age Group"] === "Child" ? [$guest["Age"]] : [],
-        "Extras" => []
+foreach ($units as $unit) {
+    $payload = [
+        "Unit Type ID" => $unit["unitId"],
+        "Arrival" => $arrival,
+        "Departure" => $departure,
+        "Guests" => $guests
     ];
-}
 
-$response["Total Charge"] = $total;
+    $ch = curl_init("https://dev.gondwana-collection.com/Web-Store/Rates/Rates.php");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $decoded = json_decode($response, true);
+    if ($decoded) {
+        $results[] = [
+            "unitId" => $unit["unitId"],
+            "unitName" => $unit["unitName"],
+            "apiResponse" => $decoded
+        ];
+    }
+}
 
 echo json_encode([
     "status" => "ok",
-    "request_sent" => [
-        "Unit Name" => $unitName,
-        "Arrival" => (new DateTime($arrival))->format("Y-m-d"),
-        "Departure" => (new DateTime($departure))->format("Y-m-d"),
-        "Guests" => $guests
-    ],
-    "response" => $response,
-    "httpCode" => 200
+    "arrival" => $arrival,
+    "departure" => $departure,
+    "guests" => $guests,
+    "results" => $results
 ]);
