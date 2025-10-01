@@ -58,121 +58,104 @@
   </div>
 
 <script>
-  const API_URL =
-    window.location.hostname.includes("github.dev") || window.location.hostname.includes("app.github.dev")
-      ? `${window.location.origin.replace(/-\d+\.app\.github\.dev/, "-8080.app.github.dev")}/api/index.php`
-      : "http://localhost:8080/api/index.php";
+const API_URL =
+  window.location.hostname.includes("github.dev") || window.location.hostname.includes("app.github.dev")
+    ? `${window.location.origin.replace(/-\d+\.app\.github\.dev/, "-8080.app.github.dev")}/api/index.php`
+    : "http://localhost:8080/api/index.php";
 
-  const form = document.getElementById("rateForm");
-  const summary = document.getElementById("summary");
-  const results = document.getElementById("results");
-  const errorBox = document.getElementById("errorBox");
-  const errorMessage = document.getElementById("errorMessage");
-  const btnText = document.getElementById("btnText");
-  const spinner = document.getElementById("spinner");
+const form = document.getElementById("rateForm");
+const results = document.getElementById("results");
+const summary = document.getElementById("summary");
+const errorBox = document.getElementById("errorBox");
+const errorMessage = document.getElementById("errorMessage");
+const spinner = document.getElementById("spinner");
+const btnText = document.getElementById("btnText");
 
-  function showError(msg) {
-    errorMessage.textContent = msg;
-    errorBox.classList.remove("hidden");
-  }
-
-  function hideError() {
-    errorBox.classList.add("hidden");
-  }
-
-  function setLoading(isLoading) {
-    if (isLoading) {
-      btnText.textContent = "Loading...";
-      spinner.classList.remove("hidden");
-    } else {
-      btnText.textContent = "Search";
-      spinner.classList.add("hidden");
-    }
-  }
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    hideError();
-    setLoading(true);
-
-    const arrival = document.getElementById("arrival").value;
-    const departure = document.getElementById("departure").value;
-    const adults = parseInt(document.getElementById("adults").value, 10) || 0;
-    const children = parseInt(document.getElementById("children").value, 10) || 0;
-
-    const ages = [];
-    for (let i = 0; i < adults; i++) ages.push(30);
-    for (let i = 0; i < children; i++) ages.push(10);
-
-    const payload = {
-      "Arrival": arrival,
-      "Departure": departure,
-      "Ages": ages
-    };
-
-    try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error("Server returned " + res.status);
-      const data = await res.json();
-
-      summary.innerHTML = "";
-      results.classList.remove("hidden");
-
-      if (data?.results?.length) {
-        data.results.forEach((result) => {
-          const leg = result.apiResponse.Legs?.[0];
-         if (leg) {
-  const isAvailable = leg["Total Charge"] > 0;
-
-  const card = document.createElement("div");
-  card.className = "border rounded-2xl shadow-lg p-6 bg-gray-50";
-
-  card.innerHTML = `
-    <h3 class="text-xl font-bold text-gray-800 mb-2">🏡 ${result.unitName}</h3>
-    <p class="${isAvailable ? "text-green-600" : "text-red-600"} font-semibold mb-2">
-      ${isAvailable ? "✔ Available" : "❌ Not available"}
-    </p>
-    <p><strong>📅 Date Range:</strong> ${data.arrival} → ${data.departure}</p>
-    <p><strong>💰 Rate:</strong> ${leg["Special Rate Description"] || "N/A"}</p>
-    ${
-      isAvailable
-        ? `
-          <p><strong>💵 Total:</strong> N$ ${(leg["Total Charge"] / 100).toLocaleString()}</p>
-          <p><strong>💵 Avg per night:</strong> N$ ${(leg["Effective Average Daily Rate"] / 100).toLocaleString()}</p>
-        `
-        : ""
-    }
-  `;
-
-  summary.appendChild(card);
+function showError(msg) {
+  errorMessage.textContent = msg;
+  errorBox.classList.remove("hidden");
+}
+function hideError() {
+  errorBox.classList.add("hidden");
+}
+function setLoading(isLoading) {
+  spinner.classList.toggle("hidden", !isLoading);
+  btnText.textContent = isLoading ? "Loading..." : "Search";
 }
 
-        });
-      } else {
-        summary.innerHTML = `<p class="text-gray-500">❌ No results found</p>`;
-      }
-    } catch (err) {
-      showError("Error fetching rates: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  });
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  hideError();
+  setLoading(true);
 
-  document.getElementById("clearBtn").addEventListener("click", () => {
-    document.getElementById("arrival").value = "";
-    document.getElementById("departure").value = "";
-    document.getElementById("adults").value = 2;
-    document.getElementById("children").value = 0;
+  const arrival = document.getElementById("arrival").value;
+  const departure = document.getElementById("departure").value;
+  const adults = parseInt(document.getElementById("adults").value, 10) || 0;
+  const children = parseInt(document.getElementById("children").value, 10) || 0;
+
+  const ages = [];
+  for (let i = 0; i < adults; i++) ages.push(30);
+  for (let i = 0; i < children; i++) ages.push(10);
+
+  const payload = {
+    "Arrival": arrival,
+    "Departure": departure,
+    "Ages": ages,
+  };
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) throw new Error("Server returned " + res.status);
+    const data = await res.json();
+
     summary.innerHTML = "";
-    results.classList.add("hidden");
-    hideError();
-  });
-</script>
+    results.classList.remove("hidden");
 
+    if (data?.results?.length) {
+      data.results.forEach((result) => {
+        const apiRes = result.apiResponse;
+        if (apiRes?.Legs?.length > 0) {
+          apiRes.Legs.forEach((leg) => {
+            const total = leg["Total Charge"] / 100;
+            const avg = leg["Effective Average Daily Rate"] / 100;
+            const available = total > 0;
+
+            const card = document.createElement("div");
+            card.className = "border rounded-2xl shadow-lg p-6 bg-gray-50";
+            card.innerHTML = `
+              <h3 class="text-xl font-bold text-gray-800 mb-2">🏡 ${result.unitName}</h3>
+              <p class="${available ? "text-green-600" : "text-red-600"} font-semibold mb-2">
+                ${available ? "✔ Available" : "❌ Not available"}
+              </p>
+              <p><strong>📅 Date Range:</strong> ${data.arrival} → ${data.departure}</p>
+              <p><strong>💰 Rate:</strong> ${leg["Special Rate Description"] || "N/A"}</p>
+              <p><strong>💵 Total:</strong> ${available ? "N$ " + total.toLocaleString() : "❌ Not available"}</p>
+              <p><strong>💵 Avg per night:</strong> ${available ? "N$ " + avg.toLocaleString() : "❌ Not available"}</p>
+            `;
+            summary.appendChild(card);
+          });
+        }
+      });
+    } else {
+      summary.innerHTML = `<p class="text-gray-500">❌ No results found</p>`;
+    }
+  } catch (err) {
+    showError("Error fetching rates: " + err.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+document.getElementById("clearBtn").addEventListener("click", () => {
+  form.reset();
+  summary.innerHTML = "";
+  results.classList.add("hidden");
+});
+</script>
 </body>
 </html>

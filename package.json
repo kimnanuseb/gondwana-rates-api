@@ -1,0 +1,14 @@
+{
+  "name": "gondwana-rates-frontend",
+  "version": "1.0.0",
+  "description": "Frontend + tests for Gondwana Rates Checker",
+  "scripts": {
+    "test": "jest",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "@playwright/test": "^1.49.0"
+  }
+}

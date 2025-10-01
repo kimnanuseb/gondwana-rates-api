@@ -1,31 +1,44 @@
 <?php
+header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Content-Type: application/json");
-header("Access-Control-Allow-Origin: *");
 
-$input = json_decode(file_get_contents("php://input"), true);
-
-if (!$input || !isset($input["Arrival"], $input["Departure"], $input["Ages"])) {
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Invalid request"]);
-    exit;
+$allowedOrigins = [
+    "http://localhost:8080",
+    "https://your-username.github.io"
+];
+$origin = $_SERVER["HTTP_ORIGIN"] ?? "";
+if (in_array($origin, $allowedOrigins)) {
+    header("Access-Control-Allow-Origin: $origin");
 }
 
-$arrival = $input["Arrival"];
-$departure = $input["Departure"];
-$ages = $input["Ages"];
+if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
+    http_response_code(200);
+    exit();
+}
 
-$guests = array_map(function ($age) {
-    return ["Age Group" => $age >= 18 ? "Adult" : "Child"];
-}, $ages);
+$input = json_decode(file_get_contents("php://input"), true);
+if (!$input) {
+    echo json_encode(["status" => "error", "message" => "Invalid input"]);
+    exit();
+}
 
-$units = [
+$arrival   = $input["Arrival"]   ?? null;
+$departure = $input["Departure"] ?? null;
+$ages      = $input["Ages"]      ?? [];
+
+$guests = [];
+foreach ($ages as $age) {
+    $guests[] = ["Age Group" => $age >= 12 ? "Adult" : "Child"];
+}
+
+$unitTypes = [
     ["unitId" => -2147483637, "unitName" => "Kalahari Farmhouse"],
     ["unitId" => -2147483456, "unitName" => "Klipspringer Camps"],
 ];
 
 $results = [];
-
-foreach ($units as $unit) {
+foreach ($unitTypes as $unit) {
     $payload = [
         "Unit Type ID" => $unit["unitId"],
         "Arrival" => $arrival,
@@ -38,18 +51,14 @@ foreach ($units as $unit) {
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-
     $response = curl_exec($ch);
     curl_close($ch);
 
-    $decoded = json_decode($response, true);
-    if ($decoded) {
-        $results[] = [
-            "unitId" => $unit["unitId"],
-            "unitName" => $unit["unitName"],
-            "apiResponse" => $decoded
-        ];
-    }
+    $results[] = [
+        "unitName" => $unit["unitName"],
+        "unitId"   => $unit["unitId"],
+        "apiResponse" => json_decode($response, true)
+    ];
 }
 
 echo json_encode([
